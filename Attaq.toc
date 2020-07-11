@@ -1,0 +1,8 @@
+## Interface: 80300
+## Title: Attaq
+## Author: Jason
+## Version: 1.0
+## Dependencies: Hekili
+
+embeds.xml
+Core.lua

@@ -5,28 +5,28 @@ local BLOCK_SIZE = 2
 local BLOCK_COUNT = 21
 local PADDING = 16
 
-local Attaq = LibStub("AceAddon-3.0"):NewAddon(ADDON, "AceEvent-3.0")
-local AttaqFrame = CreateFrame("Frame", ADDON .. "Frame", UIParent, UIPanelButtonTemplate)
+local AttaQR = LibStub("AceAddon-3.0"):NewAddon(ADDON, "AceEvent-3.0")
+local AttaQRFrame = CreateFrame("Frame", ADDON .. "Frame", UIParent, UIPanelButtonTemplate)
 
 local updateElapsed = 0
 
-local function Attaq_OnUpdate(_, elapsed)
+local function AttaQR_OnUpdate(_, elapsed)
   updateElapsed = updateElapsed + elapsed
   if updateElapsed >= 0.1 then
     updateElapsed = 0
-    local abilityKey = Attaq.hekiliDisplay.Recommendations[1].keybind
-    if abilityKey and abilityKey ~= Attaq.nextAbility then
-      Attaq.nextAbility = abilityKey
+    local abilityKey = AttaQR.hekiliDisplay.Recommendations[1].keybind
+    if abilityKey and abilityKey ~= AttaQR.nextAbility then
+      AttaQR.nextAbility = abilityKey
       if abilityKey then
-        Attaq:SetCode(abilityKey)
+        AttaQR:SetCode(abilityKey)
       else
-        Attaq:ClearCode()
+        AttaQR:ClearCode()
       end
     end
   end
 end
 
-function Attaq:SetCode(message)
+function AttaQR:SetCode(message)
   local ok, tab_or_message = qrcode(message)
   if not ok then
     print(tab_or_message)
@@ -36,26 +36,26 @@ function Attaq:SetCode(message)
     for x = 1, #tab do
       for y = 1, #tab do
         if tab[x][y] > 0 then
-          AttaqFrame.QR.SetBlack((y - 1) * size + x - 1 + 1)
+          AttaQRFrame.QR.SetBlack((y - 1) * size + x - 1 + 1)
         else
-          AttaqFrame.QR.SetWhite((y - 1) * size + x - 1 + 1)
+          AttaQRFrame.QR.SetWhite((y - 1) * size + x - 1 + 1)
         end
       end
     end
   end
 end
 
-function Attaq:ClearCode()
+function AttaQR:ClearCode()
   for i = 1, BLOCK_COUNT * BLOCK_COUNT do
-    AttaqFrame.QR.SetWhite(i)
+    AttaQRFrame.QR.SetWhite(i)
   end
 end
 
-function Attaq:SetupKeybinds()
+function AttaQR:SetupKeybinds()
   local keyMap = {}
   for slot = 1, 120 do
     local actionType, id, subtype = GetActionInfo(slot)
-    local key = Attaq:GetKeyBinding(slot)
+    local key = AttaQR:GetKeyBinding(slot)
     if actionType == "spell" and key and id then
       keyMap[id] = key
     end
@@ -63,8 +63,8 @@ function Attaq:SetupKeybinds()
   self.keyMap = keyMap
 end
 
-function Attaq:SetupFrame()
-  local f = AttaqFrame
+function AttaQR:SetupFrame()
+  local f = AttaQRFrame
   f:SetFrameStrata("TOOLTIP")
   f:SetWidth(BLOCK_COUNT * BLOCK_SIZE + PADDING)
   f:SetHeight(BLOCK_COUNT * BLOCK_SIZE + PADDING)
@@ -89,8 +89,8 @@ function Attaq:SetupFrame()
   )
 end
 
-function Attaq:SetupQR()
-  local qr = CreateFrame("Frame", ADDON .. "QRFrame", AttaqFrame)
+function AttaQR:SetupQR()
+  local qr = CreateFrame("Frame", ADDON .. "QRFrame", AttaQRFrame)
 
   local function CreateBlock(idx)
     local t = CreateFrame("Frame", nil, qr)
@@ -120,21 +120,21 @@ function Attaq:SetupQR()
   for i = 1, 441 do
     tinsert(qr.boxes, CreateBlock(i - 1))
   end
-  AttaqFrame.QR = qr
+  AttaQRFrame.QR = qr
 end
 
-function Attaq:Enable()
-  AttaqFrame:Show()
-  AttaqFrame:SetScript("OnUpdate", Attaq_OnUpdate)
+function AttaQR:Enable()
+  AttaQRFrame:Show()
+  AttaQRFrame:SetScript("OnUpdate", AttaQR_OnUpdate)
   self.hekiliDisplay = Hekili.DisplayPool["Primary"]
 end
 
-function Attaq:Disable()
-  AttaqFrame:Hide()
-  AttaqFrame:SetScript("OnUpdate", nil)
+function AttaQR:Disable()
+  AttaQRFrame:Hide()
+  AttaQRFrame:SetScript("OnUpdate", nil)
 end
 
-function Attaq:OnInitialize()
+function AttaQR:OnInitialize()
   if (not IsAddOnLoaded("Blizzard_DebugTools")) then
     LoadAddOn("Blizzard_DebugTools")
   end
@@ -145,25 +145,25 @@ function Attaq:OnInitialize()
   self.nextAbility = nil
 end
 
-AttaqLDB =
+AttaQRLDB =
   LibStub("LibDataBroker-1.1"):NewDataObject(
-  "Attaq",
+  "AttaQR",
   {
     type = "data source",
     text = "",
-    label = "Attaq",
-    icon = "Interface\\AddOns\\Attaq\\icon",
+    label = "AttaQR",
+    icon = "Interface\\AddOns\\AttaQR\\icon",
     OnClick = function()
-      if AttaqFrame:IsShown() then
-        Attaq:Disable()
+      if AttaQRFrame:IsShown() then
+        AttaQR:Disable()
       else
-        Attaq:Enable()
+        AttaQR:Enable()
       end
     end,
     OnTooltipShow = function(tt)
-      tt:AddLine("Attaq")
+      tt:AddLine("AttaQR")
       tt:AddLine(" ")
-      tt:AddLine("Click to toggle Attaq QR Code")
+      tt:AddLine("Click to toggle AttaQR Code")
     end
   }
 )

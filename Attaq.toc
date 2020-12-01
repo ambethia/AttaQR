@@ -1,6 +1,6 @@
-## Interface: 80300
-## Title: Attaq
-## Author: Jason
+## Interface: 90002
+## Title: AttaQR
+## Author: Jason L Perry
 ## Version: 1.0
 ## Dependencies: Hekili
 

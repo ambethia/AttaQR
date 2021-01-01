@@ -1,8 +1,8 @@
 ## Interface: 90002
 ## Title: AttaQR
 ## Author: Jason L Perry
-## Version: 1.0
+## Version: 2.0
 ## Dependencies: Hekili
 
 embeds.xml
-Core.lua
+modules.xml

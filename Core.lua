@@ -1,7 +1,7 @@
 local ADDON, NS = ...
 
 local TILE_SIZE = 23
-local SCALE = 1
+local SCALE = 1.42
 
 local Hekili = _G["Hekili"]
 
@@ -25,30 +25,18 @@ local function AttaQR_OnUpdate(_, elapsed)
 end
 
 function AttaQR:OnInitialize()
+  self.isActive = false
   self.updateElapsed = 0
   self.frame = self:CreateQRFrame()
   self:ClearCode()
 end
 
 function AttaQR:OnEnable()
-  self:RegisterEvent("PLAYER_REGEN_DISABLED")
-  self:RegisterEvent("PLAYER_REGEN_ENABLED")
-  self:RegisterEvent("PLAYER_ENTERING_WORLD")
-end
-
-function AttaQR:PLAYER_REGEN_DISABLED()
-  self:Activate()
-end
-
-function AttaQR:PLAYER_REGEN_ENABLED()
-  self:Deactivate()
-end
-
-function AttaQR:PLAYER_ENTERING_WORLD()
   self:FixUIScaling()
+  self:RegisterChatCommand("atq", "SlashProcessor")
 end
 
--- Prevent client from interrupting channeled spells.
+-- Prevent interruption of channeled spells.
 function AttaQR:SPELL_UPDATE_COOLDOWN()
   local isChanneling = UnitChannelInfo("player")
   if isChanneling then
@@ -56,34 +44,34 @@ function AttaQR:SPELL_UPDATE_COOLDOWN()
   end
 end
 
-function AttaQR:PLAYER_TARGET_CHANGED()
-  if UnitIsEnemy("player","target") and UnitAffectingCombat("player") then
-    self:Activate()
-  else
-    self:Deactivate()
-  end
-end
-
 function AttaQR:Activate()
   if self.frame:IsShown() then
+    self.isActive = true
     self:ClearCode()
     self.hekiliDisplay = Hekili.DisplayPool["Primary"]
     self.frame:SetScript("OnUpdate", AttaQR_OnUpdate)
-    self:RegisterEvent("SPELL_UPDATE_COOLDOWN")
-    self:RegisterEvent("PLAYER_TARGET_CHANGED")
+    self.frame:SetBackdropBorderColor(0, 1, 0)
   end
 end
 
 function AttaQR:Deactivate()
+  self.isActive = false
   self:ClearCode()
   self.frame:SetScript("OnUpdate", nil)
-  self:UnregisterEvent("SPELL_UPDATE_COOLDOWN")
-  self:UnregisterEvent("PLAYER_TARGET_CHANGED")
+  self.frame:SetBackdropBorderColor(1, 1, 1)
+end
+
+function AttaQR:SlashProcessor()
+  if self.isActive then
+    AttaQR:Deactivate()
+  else
+    AttaQR:Activate()
+  end
 end
 
 function AttaQR:SetCode(code)
   local coords = NS.Keys[code] or NS.Keys["noop"]
-  self.frame.QRTexture:SetTexCoord(unpack(coords))
+  self.frame.Center:SetTexCoord(unpack(coords))
 end
 
 function AttaQR:ClearCode()
@@ -92,18 +80,18 @@ function AttaQR:ClearCode()
 end
 
 function AttaQR:FixUIScaling()
+  local ppUI = 768.0 / GetScreenHeight()
   local uiScale = GetCVar("uiScale")
-  if uiScale then
-    self.frame:SetWidth(TILE_SIZE * SCALE / uiScale)
-    self.frame:SetHeight(TILE_SIZE * SCALE / uiScale)
-  end
+  local newSize = TILE_SIZE * SCALE + 8 / (ppUI / uiScale)
+  self.frame:SetWidth(newSize)
+  self.frame:SetHeight(newSize)
 end
 
 function AttaQR:CreateQRFrame()
-  local frame = CreateFrame("Frame", ADDON .. "Frame", UIParent, UIPanelButtonTemplate)
+  local frame = CreateFrame("Frame", ADDON .. "Frame", UIParent, BackdropTemplateMixin and "BackdropTemplate")
   frame:SetFrameStrata("TOOLTIP")
-  frame:SetWidth(TILE_SIZE * SCALE)
-  frame:SetHeight(TILE_SIZE * SCALE)
+  frame:SetWidth(TILE_SIZE * SCALE + 8)
+  frame:SetHeight(TILE_SIZE * SCALE + 8)
   frame:SetMovable(true)
   frame:EnableMouse(true)
   frame:SetPoint("BOTTOMLEFT", 8, 8) -- TODO: Save Position
@@ -120,13 +108,9 @@ function AttaQR:CreateQRFrame()
       self:StopMovingOrSizing()
     end
   )
-  
-  local texture = frame:CreateTexture(nil, "OVERLAY")
-  texture:SetTexture("Interface\\Addons\\" .. ADDON .. "\\Keys", "CLAMPTOWHITE", "CLAMPTOWHITE", "NEAREST")
-  texture:SetAllPoints(frame)
 
-  frame.QRTexture = texture
-
+  frame:SetBackdrop(BACKDROP_TOOLTIP_12_12_4444)
+  frame.Center:SetTexture("Interface\\Addons\\" .. ADDON .. "\\Keys", "CLAMPTOWHITE", "CLAMPTOWHITE", "NEAREST")
   return frame
 end
 

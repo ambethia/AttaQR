@@ -33,6 +33,7 @@ end
 function AttaQR:OnEnable()
   self:RegisterEvent("PLAYER_REGEN_DISABLED")
   self:RegisterEvent("PLAYER_REGEN_ENABLED")
+  self:RegisterEvent("PLAYER_ENTERING_WORLD")
 end
 
 function AttaQR:PLAYER_REGEN_DISABLED()
@@ -41,6 +42,10 @@ end
 
 function AttaQR:PLAYER_REGEN_ENABLED()
   self:Deactivate()
+end
+
+function AttaQR:PLAYER_ENTERING_WORLD()
+  self:FixUIScaling()
 end
 
 -- Prevent client from interrupting channeled spells.
@@ -86,6 +91,14 @@ function AttaQR:ClearCode()
   self:SetCode('noop')
 end
 
+function AttaQR:FixUIScaling()
+  local uiScale = GetCVar("uiScale")
+  if uiScale then
+    self.frame:SetWidth(TILE_SIZE * SCALE / uiScale)
+    self.frame:SetHeight(TILE_SIZE * SCALE / uiScale)
+  end
+end
+
 function AttaQR:CreateQRFrame()
   local frame = CreateFrame("Frame", ADDON .. "Frame", UIParent, UIPanelButtonTemplate)
   frame:SetFrameStrata("TOOLTIP")
@@ -93,7 +106,7 @@ function AttaQR:CreateQRFrame()
   frame:SetHeight(TILE_SIZE * SCALE)
   frame:SetMovable(true)
   frame:EnableMouse(true)
-  frame:SetPoint("BOTTOMLEFT", 8, 8) -- TODO: Save Posi tion
+  frame:SetPoint("BOTTOMLEFT", 8, 8) -- TODO: Save Position
   frame:RegisterForDrag("LeftButton")
   frame:SetScript(
     "OnDragStart",

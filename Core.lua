@@ -11,15 +11,20 @@ local function AttaQR_OnUpdate(_, elapsed)
   AttaQR.updateElapsed = AttaQR.updateElapsed + elapsed
   if AttaQR.updateElapsed >= 0.1 then
     AttaQR.updateElapsed = 0
-    local recommendation = AttaQR.hekiliDisplay.Recommendations[1]
-    local abilityKey = recommendation.keybind
-    if abilityKey and abilityKey ~= AttaQR.nextAbility then
-      AttaQR.nextAbility = abilityKey
-      if abilityKey and recommendation.time == 0 then
-        AttaQR:SetCode(abilityKey)
-      else
-        AttaQR:ClearCode()
+
+    if AttaQR.hekiliDisplay.alpha > 0 then
+      local recommendation = AttaQR.hekiliDisplay.Recommendations[1]
+      local abilityKey = recommendation.keybind
+      if abilityKey and abilityKey ~= AttaQR.nextAbility then
+        AttaQR.nextAbility = abilityKey
+        if abilityKey and recommendation.time == 0 then
+          AttaQR:SetCode(abilityKey)
+        else
+          AttaQR:ClearCode()
+        end
       end
+    else
+      AttaQR:ClearCode()
     end
   end
 end

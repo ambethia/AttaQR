@@ -76,7 +76,7 @@ end
 
 function AttaQR:SetCode(code)
   local coords = NS.Keys[code] or NS.Keys["noop"]
-  self.frame.Center:SetTexCoord(unpack(coords))
+  self.frame.qrTexture:SetTexCoord(unpack(coords))
 end
 
 function AttaQR:ClearCode()
@@ -114,8 +114,27 @@ function AttaQR:CreateQRFrame()
     end
   )
 
-  frame:SetBackdrop(BACKDROP_TOOLTIP_12_12_4444)
-  frame.Center:SetTexture("Interface\\Addons\\" .. ADDON .. "\\Keys", "CLAMPTOWHITE", "CLAMPTOWHITE", "NEAREST")
+  local backdropInfo =
+{
+	bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+ 	edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+ 	tile = true,
+ 	tileEdge = true,
+ 	tileSize = 8,
+ 	edgeSize = 8,
+ 	insets = { left = 1, right = 1, top = 1, bottom = 1 },
+}
+
+  frame:SetBackdrop(backdropInfo)
+  
+  local texture = frame:CreateTexture(nil, "ARTWORK")
+  texture:SetTexture("Interface\\Addons\\" .. ADDON .. "\\Keys", "CLAMPTOWHITE", "CLAMPTOWHITE", "NEAREST")
+  -- texture:SetAllPoints()
+  texture:SetPoint("TOPLEFT", frame ,"TOPLEFT", 3, -3)
+  texture:SetPoint("BOTTOMRIGHT", frame ,"BOTTOMRIGHT", -3, 3)
+
+  frame.qrTexture = texture
+
   return frame
 end
 

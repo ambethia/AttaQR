@@ -1,7 +1,8 @@
 local ADDON, NS = ...
 
 local TILE_SIZE = 23
-local SCALE = 1.42
+local SCALE = 2
+local DELTA = 0.1
 
 local Hekili = _G["Hekili"]
 
@@ -9,7 +10,7 @@ AttaQR = LibStub("AceAddon-3.0"):NewAddon(ADDON, "AceConsole-3.0", "AceEvent-3.0
 
 local function AttaQR_OnUpdate(_, elapsed)
   AttaQR.updateElapsed = AttaQR.updateElapsed + elapsed
-  if AttaQR.updateElapsed >= 0.1 then
+  if AttaQR.updateElapsed >= DELTA then
     AttaQR.updateElapsed = 0
 
     if AttaQR.hekiliDisplay.alpha > 0 then
@@ -17,7 +18,7 @@ local function AttaQR_OnUpdate(_, elapsed)
       local abilityKey = recommendation.keybind
       if abilityKey and abilityKey ~= AttaQR.nextAbility then
         AttaQR.nextAbility = abilityKey
-        if abilityKey and recommendation.time == 0 then
+        if abilityKey and recommendation.time == 0 and not AttaQR.isChanneling then
           AttaQR:SetCode(abilityKey)
         else
           AttaQR:ClearCode()
@@ -31,6 +32,7 @@ end
 
 function AttaQR:OnInitialize()
   self.isActive = false
+  self.isChanneling = false
   self.updateElapsed = 0
   self.frame = self:CreateQRFrame()
   self:ClearCode()
@@ -43,11 +45,14 @@ end
 
 -- Prevent interruption of channeled spells.
 function AttaQR:SPELL_UPDATE_COOLDOWN()
-  local isChanneling = UnitChannelInfo("player")
-  if isChanneling then
-    self:ClearCode()
-  end
+  -- local isChanneling = 
+  self.isChanneling = UnitChannelInfo("player")
+  -- if isChanneling then
+  --   self:ClearCode()
+  -- end
 end
+
+AttaQR:RegisterEvent("SPELL_UPDATE_COOLDOWN")
 
 function AttaQR:Activate()
   if self.frame:IsShown() then
@@ -76,6 +81,7 @@ end
 
 function AttaQR:SetCode(code)
   local coords = NS.Keys[code] or NS.Keys["noop"]
+  self.frame.text:SetText(code)
   self.frame.qrTexture:SetTexCoord(unpack(coords))
 end
 
@@ -134,6 +140,10 @@ function AttaQR:CreateQRFrame()
   texture:SetPoint("BOTTOMRIGHT", frame ,"BOTTOMRIGHT", -3, 3)
 
   frame.qrTexture = texture
+
+  frame.text = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  frame.text:SetPoint("TOP", frame, "BOTTOM", 0, -5)
+  frame.text:SetText("...")
 
   return frame
 end

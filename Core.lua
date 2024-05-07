@@ -1,7 +1,6 @@
 local ADDON, NS = ...
 
-local TILE_SIZE = 23
-local SCALE = 2
+local TILE_SIZE = 32
 local DELTA = 0.1
 
 local Hekili = _G["Hekili"]
@@ -91,18 +90,18 @@ function AttaQR:ClearCode()
 end
 
 function AttaQR:FixUIScaling()
-  local ppUI = 768.0 / GetScreenHeight()
-  local uiScale = GetCVar("uiScale")
-  local newSize = TILE_SIZE * SCALE + 8 / (ppUI / uiScale)
-  self.frame:SetWidth(newSize)
-  self.frame:SetHeight(newSize)
+  local ui_scale = UIParent:GetEffectiveScale()
+  local height = select(2, GetPhysicalScreenSize())
+  local scale = GetScreenDPIScale()
+  local pp_scale = 768 / height / ui_scale * scale
+  self.frame:SetScale(pp_scale);
 end
 
 function AttaQR:CreateQRFrame()
   local frame = CreateFrame("Frame", ADDON .. "Frame", UIParent, BackdropTemplateMixin and "BackdropTemplate")
   frame:SetFrameStrata("TOOLTIP")
-  frame:SetWidth(TILE_SIZE * SCALE + 8)
-  frame:SetHeight(TILE_SIZE * SCALE + 8)
+  frame:SetWidth(TILE_SIZE + 8)
+  frame:SetHeight(TILE_SIZE + 8)
   frame:SetMovable(true)
   frame:EnableMouse(true)
   frame:SetPoint("BOTTOMLEFT", 8, 8) -- TODO: Save Position

@@ -1,6 +1,6 @@
 local ADDON, NS = ...
 
-local TILE_SIZE = 32
+local TILE_SIZE = 44
 local DELTA = 0.1
 
 local Hekili = _G["Hekili"]

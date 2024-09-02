@@ -1,11 +1,104 @@
 local ADDON, NS = ...
 
-local TILE_SIZE = 44
-local DELTA = 0.1
+local TILE_PAD = 8
+local DELTA = 0.05
 
 local Hekili = _G["Hekili"]
 
 AttaQR = LibStub("AceAddon-3.0"):NewAddon(ADDON, "AceConsole-3.0", "AceEvent-3.0")
+
+local defaults = {
+  profile = {
+    enabled = true,
+    automatic = true,
+    label = false,
+    tile_size = 36
+  }
+}
+
+
+local options = {
+  name = ADDON,
+  handler = AttaQR,
+  type = 'group',
+  args = {
+    enable = {
+      type = 'toggle',
+      name = 'Enable ' .. ADDON,
+      desc = 'Enable / disable the addon',
+      get =  function(info) return AttaQR.db.profile.enabled end,
+      set = 'SetEnableAttaQR',
+      width = 'full',
+      order = 90
+    },
+    tile_size = {
+      type = 'range',
+      min = 8,
+			max = 128,
+			step = 1,
+      name = 'Tile Size',
+      get = function(info) return AttaQR.db.profile.tile_size end,
+      set = 'SetTileSize',
+      width = 'double',
+      order = 110
+    },
+    label = {
+      type = 'toggle',
+      name = 'Show label',
+      desc = 'Show current keybind as a text label below the QR code',
+      get =  function(info) return AttaQR.db.profile.label end,
+      set = 'SetShowLabel',
+      width = 'full',
+      order = 120
+    },
+    automatic = {
+      type = 'toggle',
+      name = 'Auto-Activate',
+      desc = 'Automatically activate (and deactivate) with combat',
+      get =  function(info) return AttaQR.db.profile.automatic end,
+      set = function(info, val) AttaQR.db.profile.automatic = val end,
+      width = 'full',
+      order = 130
+    },
+  },
+}
+
+local optionsTable = LibStub("AceConfig-3.0"):RegisterOptionsTable(ADDON, options, {"attaqr", "atqr"})
+local AceConfigDialog = LibStub("AceConfigDialog-3.0")
+
+LibStub("AceConfigDialog-3.0")
+
+function AttaQR:GetEnableAttaQR(info)
+  return self.db.profile.enabled
+end
+
+function AttaQR:SetEnableAttaQR(info, val)
+  if val then
+    self.db.profile.enabled = true
+    AttaQR.frame:Show()
+    AttaQR:Activate()
+  else
+    self.db.profile.enabled = false
+    AttaQR.frame:Hide()
+    AttaQR:Deactivate()
+  end
+end
+
+function AttaQR:SetShowLabel(info, val)
+  if val then
+    self.db.profile.label = true
+    AttaQR.frame.text:Show()
+  else
+    self.db.profile.label = false
+    AttaQR.frame.text:Hide()
+  end
+end
+
+function AttaQR:SetTileSize(info, val)
+  self.db.profile.tile_size = val
+  self.frame:SetWidth(val + TILE_PAD)
+  self.frame:SetHeight(val + TILE_PAD)
+end
 
 local function AttaQR_OnUpdate(_, elapsed)
   AttaQR.updateElapsed = AttaQR.updateElapsed + elapsed
@@ -17,7 +110,9 @@ local function AttaQR_OnUpdate(_, elapsed)
       local abilityKey = recommendation.keybind
       if abilityKey and abilityKey ~= AttaQR.nextAbility then
         AttaQR.nextAbility = abilityKey
-        if abilityKey and recommendation.time == 0 and not AttaQR.isChanneling then
+        if abilityKey and recommendation.time <= DELTA
+          and not AttaQR.isChanneling
+          and not _G['ACTIVE_CHAT_EDIT_BOX'] then
           AttaQR:SetCode(abilityKey)
         else
           AttaQR:ClearCode()
@@ -30,11 +125,23 @@ local function AttaQR_OnUpdate(_, elapsed)
 end
 
 function AttaQR:OnInitialize()
+  self.db = LibStub("AceDB-3.0"):New(ADDON .. "DB", defaults, true)
+  AceConfigDialog:AddToBlizOptions(ADDON, ADDON)
+
   self.isActive = false
   self.isChanneling = false
   self.updateElapsed = 0
   self.frame = self:CreateQRFrame()
   self:ClearCode()
+
+  if not self.db.profile.enabled then
+    AttaQR.frame:Hide()
+    AttaQR:Deactivate()
+  end
+
+  if not self.db.profile.label then
+    AttaQR.frame.text:Hide()
+  end
 end
 
 function AttaQR:OnEnable()
@@ -44,14 +151,24 @@ end
 
 -- Prevent interruption of channeled spells.
 function AttaQR:SPELL_UPDATE_COOLDOWN()
-  -- local isChanneling = 
   self.isChanneling = UnitChannelInfo("player")
-  -- if isChanneling then
-  --   self:ClearCode()
-  -- end
 end
-
 AttaQR:RegisterEvent("SPELL_UPDATE_COOLDOWN")
+
+function AttaQR:PLAYER_REGEN_ENABLED()
+  if self.db.profile.automatic then
+    self:Deactivate()
+  end
+  
+end
+AttaQR:RegisterEvent("PLAYER_REGEN_ENABLED")
+
+function AttaQR:PLAYER_REGEN_DISABLED()
+  if self.db.profile.automatic then
+    self:Activate()
+  end
+end
+AttaQR:RegisterEvent("PLAYER_REGEN_DISABLED")
 
 function AttaQR:Activate()
   if self.frame:IsShown() then
@@ -99,12 +216,13 @@ end
 
 function AttaQR:CreateQRFrame()
   local frame = CreateFrame("Frame", ADDON .. "Frame", UIParent, BackdropTemplateMixin and "BackdropTemplate")
+  local tile_size = self.db.profile.tile_size
   frame:SetFrameStrata("TOOLTIP")
-  frame:SetWidth(TILE_SIZE + 8)
-  frame:SetHeight(TILE_SIZE + 8)
+  frame:SetWidth(tile_size + TILE_PAD)
+  frame:SetHeight(tile_size + TILE_PAD)
   frame:SetMovable(true)
   frame:EnableMouse(true)
-  frame:SetPoint("BOTTOMLEFT", 8, 8) -- TODO: Save Position
+  frame:SetPoint("BOTTOMLEFT", TILE_PAD, TILE_PAD) -- TODO: Save Position
   frame:RegisterForDrag("LeftButton")
   frame:SetScript(
     "OnDragStart",
@@ -125,8 +243,8 @@ function AttaQR:CreateQRFrame()
  	edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
  	tile = true,
  	tileEdge = true,
- 	tileSize = 8,
- 	edgeSize = 8,
+ 	tileSize = TILE_PAD,
+ 	edgeSize = TILE_PAD,
  	insets = { left = 1, right = 1, top = 1, bottom = 1 },
 }
 

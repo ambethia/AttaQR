@@ -3,6 +3,7 @@
 ## Author: Jason L Perry
 ## Version: 2.0
 ## Dependencies: Hekili
+## SavedVariables: AttaQRDB
 
 embeds.xml
 modules.xml

@@ -1,7 +1,7 @@
 local ADDON, NS = ...
 
-local TILE_PAD = 8
-local DELTA = 0.05
+local DELTA = 0.2
+local C = 0.003921
 
 local Hekili = _G["Hekili"]
 
@@ -12,10 +12,9 @@ local defaults = {
     enabled = true,
     automatic = true,
     label = false,
-    tile_size = 36
+    pixel_size = 4
   }
 }
-
 
 local options = {
   name = ADDON,
@@ -31,14 +30,14 @@ local options = {
       width = 'full',
       order = 90
     },
-    tile_size = {
+    pixel_size = {
       type = 'range',
-      min = 8,
-			max = 128,
+      min = 1,
+			max = 32,
 			step = 1,
-      name = 'Tile Size',
-      get = function(info) return AttaQR.db.profile.tile_size end,
-      set = 'SetTileSize',
+      name = 'Pixel Size',
+      get = function(info) return AttaQR.db.profile.pixel_size end,
+      set = 'SetPixelSize',
       width = 'double',
       order = 110
     },
@@ -50,15 +49,6 @@ local options = {
       set = 'SetShowLabel',
       width = 'full',
       order = 120
-    },
-    automatic = {
-      type = 'toggle',
-      name = 'Auto-Activate',
-      desc = 'Automatically activate (and deactivate) with combat',
-      get =  function(info) return AttaQR.db.profile.automatic end,
-      set = function(info, val) AttaQR.db.profile.automatic = val end,
-      width = 'full',
-      order = 130
     },
   },
 }
@@ -76,11 +66,9 @@ function AttaQR:SetEnableAttaQR(info, val)
   if val then
     self.db.profile.enabled = true
     AttaQR.frame:Show()
-    AttaQR:Activate()
   else
     self.db.profile.enabled = false
     AttaQR.frame:Hide()
-    AttaQR:Deactivate()
   end
 end
 
@@ -94,33 +82,22 @@ function AttaQR:SetShowLabel(info, val)
   end
 end
 
-function AttaQR:SetTileSize(info, val)
-  self.db.profile.tile_size = val
-  self.frame:SetWidth(val + TILE_PAD)
-  self.frame:SetHeight(val + TILE_PAD)
+function AttaQR:SetPixelSize(info, val)
+  self.db.profile.pixel_size = val
+  self.frame:SetSize(val, val)
 end
 
 local function AttaQR_OnUpdate(_, elapsed)
-  AttaQR.updateElapsed = AttaQR.updateElapsed + elapsed
-  if AttaQR.updateElapsed >= DELTA then
-    AttaQR.updateElapsed = 0
+  if _G['ACTIVE_CHAT_EDIT_BOX'] then
+    AttaQR:ClearCode()
+    return
+  end
 
-    if AttaQR.hekiliDisplay.alpha > 0 then
-      local recommendation = AttaQR.hekiliDisplay.Recommendations[1]
-      local abilityKey = recommendation.keybind
-      if abilityKey and abilityKey ~= AttaQR.nextAbility then
-        AttaQR.nextAbility = abilityKey
-        if abilityKey and recommendation.time <= DELTA
-          and not AttaQR.isChanneling
-          and not _G['ACTIVE_CHAT_EDIT_BOX'] then
-          AttaQR:SetCode(abilityKey)
-        else
-          AttaQR:ClearCode()
-        end
-      end
-    else
-      AttaQR:ClearCode()
-    end
+  local recommendation = Hekili.DisplayPool["Primary"].Recommendations[1]
+  if recommendation.exact_time and recommendation.exact_time - GetTime()<= DELTA then
+    AttaQR:SetCode(recommendation.keybind)
+  else
+    AttaQR:ClearCode()
   end
 end
 
@@ -128,140 +105,93 @@ function AttaQR:OnInitialize()
   self.db = LibStub("AceDB-3.0"):New(ADDON .. "DB", defaults, true)
   AceConfigDialog:AddToBlizOptions(ADDON, ADDON)
 
-  self.isActive = false
-  self.isChanneling = false
-  self.updateElapsed = 0
-  self.frame = self:CreateQRFrame()
-  self:ClearCode()
-
-  if not self.db.profile.enabled then
-    AttaQR.frame:Hide()
-    AttaQR:Deactivate()
-  end
-
-  if not self.db.profile.label then
-    AttaQR.frame.text:Hide()
-  end
+  self.frame = self:CreatePixelFrame()
+  self:ConfigureSettings()
+  self:ConfigureHekili()
+  self.frame:SetScript("OnUpdate", AttaQR_OnUpdate)
 end
 
-function AttaQR:OnEnable()
-  self:FixUIScaling()
-  self:RegisterChatCommand("atq", "SlashProcessor")
+function AttaQR:ConfigureSettings()
+  SetCVar("empowerTapControls", 1)
 end
 
--- Prevent interruption of channeled spells.
-function AttaQR:SPELL_UPDATE_COOLDOWN()
-  self.isChanneling = UnitChannelInfo("player")
-end
-AttaQR:RegisterEvent("SPELL_UPDATE_COOLDOWN")
-
-function AttaQR:PLAYER_REGEN_ENABLED()
-  if self.db.profile.automatic then
-    self:Deactivate()
-  end
-  
-end
-AttaQR:RegisterEvent("PLAYER_REGEN_ENABLED")
-
-function AttaQR:PLAYER_REGEN_DISABLED()
-  if self.db.profile.automatic then
-    self:Activate()
-  end
-end
-AttaQR:RegisterEvent("PLAYER_REGEN_DISABLED")
-
-function AttaQR:Activate()
-  if self.frame:IsShown() then
-    self.isActive = true
-    self:ClearCode()
-    self.hekiliDisplay = Hekili.DisplayPool["Primary"]
-    self.frame:SetScript("OnUpdate", AttaQR_OnUpdate)
-    self.frame:SetBackdropBorderColor(0, 1, 0)
-  end
+function AttaQR:ConfigureHekili()
+  AttaQR.hekiliDisplay = Hekili.DisplayPool["Primary"]
+  local primary = Hekili.DB.profile.displays.Primary
+  primary.primaryWidth = 32
+  primary.primaryHeight = 32
+  primary.numIcons = 1
+  primary.visibility.advanced = true
+  primary.visibility.pve.always = 0
+  primary.visibility.pve.combat = 0
+  primary.visibility.pve.target = 0
+  primary.visibility.pve.combatTarget = 1
+  primary.visibility.pvp.always = 0
+  primary.visibility.pvp.combat = 0
+  primary.visibility.pvp.target = 0
+  primary.visibility.pvp.combatTarget = 11
+  primary.range.type = "xclude"
+  Hekili:BuildUI()
 end
 
-function AttaQR:Deactivate()
-  self.isActive = false
-  self:ClearCode()
-  self.frame:SetScript("OnUpdate", nil)
-  self.frame:SetBackdropBorderColor(1, 1, 1)
-end
+function AttaQR:SetCode(key)
+  if key then
+    local mod = 0
+    local first = string.sub(key, 1, 1)
+    local rest = string.sub(key, 2)
 
-function AttaQR:SlashProcessor()
-  if self.isActive then
-    AttaQR:Deactivate()
+    if first == 'S' then
+      mod = NS.Keys['SHIFT']
+      key = rest
+    end
+    
+    if first == 'C' then
+      mod = NS.Keys['CTRL']
+      key = rest
+    end
+    
+    if first == 'A' then
+      mod = NS.Keys['ALT']
+      key = rest
+    end
+
+    local code = NS.Keys[key]
+
+    
+    if code then
+      self.frame.text:SetText(key .. ' (' .. code .. ')' .. ' ' .. C)
+      self.frame.pixel:SetColorTexture(255, mod / 255, code / 255, 1)
+    else
+      self.frame.pixel:SetColorTexture(0, 0, 0, 1)
+      self.frame.text:SetText('!' .. first .. rest)
+    end  
   else
-    AttaQR:Activate()
+    self.frame.pixel:SetColorTexture(0, 0, 0, 1)
+    self.frame.text:SetText('...')
   end
-end
-
-function AttaQR:SetCode(code)
-  local coords = NS.Keys[code] or NS.Keys["noop"]
-  self.frame.text:SetText(code)
-  self.frame.qrTexture:SetTexCoord(unpack(coords))
 end
 
 function AttaQR:ClearCode()
-  self.nextAbility = nil
-  self:SetCode('noop')
+  self:SetCode(nil)
 end
 
-function AttaQR:FixUIScaling()
-  local ui_scale = UIParent:GetEffectiveScale()
-  local height = select(2, GetPhysicalScreenSize())
-  local scale = GetScreenDPIScale()
-  local pp_scale = 768 / height / ui_scale * scale
-  self.frame:SetScale(pp_scale);
-end
-
-function AttaQR:CreateQRFrame()
+function AttaQR:CreatePixelFrame()
   local frame = CreateFrame("Frame", ADDON .. "Frame", UIParent, BackdropTemplateMixin and "BackdropTemplate")
-  local tile_size = self.db.profile.tile_size
   frame:SetFrameStrata("TOOLTIP")
-  frame:SetWidth(tile_size + TILE_PAD)
-  frame:SetHeight(tile_size + TILE_PAD)
-  frame:SetMovable(true)
-  frame:EnableMouse(true)
-  frame:SetPoint("BOTTOMLEFT", TILE_PAD, TILE_PAD) -- TODO: Save Position
-  frame:RegisterForDrag("LeftButton")
-  frame:SetScript(
-    "OnDragStart",
-    function(self)
-      self:StartMoving()
-    end
-  )
-  frame:SetScript(
-    "OnDragStop",
-    function(self)
-      self:StopMovingOrSizing()
-    end
-  )
-
-  local backdropInfo =
-{
-	bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
- 	edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
- 	tile = true,
- 	tileEdge = true,
- 	tileSize = TILE_PAD,
- 	edgeSize = TILE_PAD,
- 	insets = { left = 1, right = 1, top = 1, bottom = 1 },
-}
-
-  frame:SetBackdrop(backdropInfo)
+  frame:SetFrameLevel(10000)
+  frame:SetPoint("TOPLEFT", 0, 0)
+  frame:SetSize(self.db.profile.pixel_size, self.db.profile.pixel_size)
   
-  local texture = frame:CreateTexture(nil, "ARTWORK")
-  texture:SetTexture("Interface\\Addons\\" .. ADDON .. "\\Keys", "CLAMPTOWHITE", "CLAMPTOWHITE", "NEAREST")
-  -- texture:SetAllPoints()
-  texture:SetPoint("TOPLEFT", frame ,"TOPLEFT", 3, -3)
-  texture:SetPoint("BOTTOMRIGHT", frame ,"BOTTOMRIGHT", -3, 3)
+  local texture = frame:CreateTexture()
+  texture:SetAllPoints()
 
-  frame.qrTexture = texture
-
+  frame.pixel = texture
   frame.text = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-  frame.text:SetPoint("TOP", frame, "BOTTOM", 0, -5)
+  frame.text:SetPoint("TOPLEFT", frame, "BOTTOMLEFT", 4, -4)
   frame.text:SetText("...")
-
+  if not self.db.profile.label then
+    frame.text:Hide()
+  end
   return frame
 end
 
@@ -275,11 +205,9 @@ local AttaQRLDB =
     icon = "Interface\\AddOns\\" .. ADDON .. "\\Icon",
     OnClick = function()
       if AttaQR.frame:IsShown() then
-        AttaQR.frame:Hide()
-        AttaQR:Deactivate()
+        AttaQR:SetEnableAttaQR(nil, false)
       else
-        AttaQR.frame:Show()
-        AttaQR:Activate()
+        AttaQR:SetEnableAttaQR(nil, true)
       end
     end,
     OnTooltipShow = function(tt)

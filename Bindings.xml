@@ -1,0 +1,5 @@
+<Bindings>
+ <Binding name="ATTAQRVERIFY" category="ADDONS" default="ALT-F12">
+  AttaQR:Verified()
+ </Binding>
+</Bindings>

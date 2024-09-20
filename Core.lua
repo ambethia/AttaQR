@@ -4,8 +4,13 @@ local DELTA = 0.2
 local C = 0.003921
 
 local Hekili = _G["Hekili"]
+local SlashCmdList = _G["SlashCmdList"]
 
 AttaQR = LibStub("AceAddon-3.0"):NewAddon(ADDON, "AceConsole-3.0", "AceEvent-3.0")
+
+BINDING_NAME_ATTAQRVERIFY = "Verify AttaQR Functionality"
+
+local isVerifying = false
 
 local defaults = {
   profile = {
@@ -97,7 +102,9 @@ local function AttaQR_OnUpdate(_, elapsed)
   if recommendation.exact_time and recommendation.exact_time - GetTime()<= DELTA then
     AttaQR:SetCode(recommendation.keybind)
   else
-    AttaQR:ClearCode()
+    if not isVerifying then
+      AttaQR:ClearCode()
+    end
   end
 end
 
@@ -140,31 +147,32 @@ function AttaQR:SetCode(key)
     local first = string.sub(key, 1, 1)
     local rest = string.sub(key, 2)
 
-    if first == 'S' then
-      mod = NS.Keys['SHIFT']
-      key = rest
-    end
-    
-    if first == 'C' then
-      mod = NS.Keys['CTRL']
-      key = rest
-    end
-    
-    if first == 'A' then
-      mod = NS.Keys['ALT']
-      key = rest
+    if string.len(rest) > 0 then
+      if first == 'S' then
+        mod = NS.Keys['SHIFT']
+        key = rest
+      end
+
+      if first == 'C' then
+        mod = NS.Keys['CTRL']
+        key = rest
+      end
+
+      if first == 'A' then
+        mod = NS.Keys['ALT']
+        key = rest
+      end
     end
 
     local code = NS.Keys[key]
 
-    
     if code then
       self.frame.text:SetText(key .. ' (' .. code .. ')' .. ' ' .. C)
       self.frame.pixel:SetColorTexture(255, mod / 255, code / 255, 1)
     else
       self.frame.pixel:SetColorTexture(0, 0, 0, 1)
       self.frame.text:SetText('!' .. first .. rest)
-    end  
+    end
   else
     self.frame.pixel:SetColorTexture(0, 0, 0, 1)
     self.frame.text:SetText('...')
@@ -175,13 +183,47 @@ function AttaQR:ClearCode()
   self:SetCode(nil)
 end
 
+function AttaQR:Verify()
+  local key = GetBindingKey("ATTAQRVERIFY")
+  if not key then
+    print("AttaQR verification keybind is not configured.")
+    return
+  end
+
+  C_Timer.After(1, function()
+    if isVerifying then
+      isVerifying = false
+      print("AttaQR might not be running.")
+    end
+    self:ClearCode()
+  end)
+
+  isVerifying = true
+  key = key:gsub("CTRL%-", "C"):gsub("ALT%-", "A"):gsub("SHIFT%-", "S")
+  print("Testing AttaQR...")
+  AttaQR:SetCode(key)
+end
+
+SLASH_ATTAQR1 = "/attaqr"
+SLASH_ATTAQR2 = "/atq"
+
+SlashCmdList["ATTAQR"] = function()
+  AttaQR:Verify()
+end
+
+function AttaQR:Verified()
+  print("AttaQR is running.")
+  isVerifying = false
+  self:ClearCode()
+end
+
 function AttaQR:CreatePixelFrame()
   local frame = CreateFrame("Frame", ADDON .. "Frame", UIParent, BackdropTemplateMixin and "BackdropTemplate")
   frame:SetFrameStrata("TOOLTIP")
   frame:SetFrameLevel(10000)
   frame:SetPoint("TOPLEFT", 0, 0)
   frame:SetSize(self.db.profile.pixel_size, self.db.profile.pixel_size)
-  
+
   local texture = frame:CreateTexture()
   texture:SetAllPoints()
 

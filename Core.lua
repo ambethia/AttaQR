@@ -55,6 +55,15 @@ local options = {
       width = 'full',
       order = 120
     },
+    interrupt = {
+      type = 'input',
+      name = 'Interrupt key',
+      desc = 'The keybinding used for your interrupt ability',
+      get =  function(info) return AttaQR.db.profile.interrupt end,
+      set = function(info, val) AttaQR.db.profile.interrupt = val end,
+      width = 'normal',
+      order = 130
+    },
   },
 }
 
@@ -98,6 +107,18 @@ local function AttaQR_OnUpdate(_, elapsed)
     return
   end
 
+  -- if string.len(AttaQR.db.profile.interrupt) > 0 then
+  --   local binding = GetBindingAction(AttaQR.db.profile.interrupt)
+  --   local button = _G[binding]
+    -- local slot = button:GetAttribute('action')
+    -- print(binding, button)
+  -- end
+
+  -- if AttaQR.overrideKey then
+  --   AttaQR:SetCode(AttaQR.overrideKey)
+  --   return
+  -- end
+
   local recommendation = Hekili.DisplayPool["Primary"].Recommendations[1]
   if recommendation.exact_time and recommendation.exact_time - GetTime()<= DELTA then
     AttaQR:SetCode(recommendation.keybind)
@@ -108,10 +129,38 @@ local function AttaQR_OnUpdate(_, elapsed)
   end
 end
 
+function AttaQR_OnKeyDown(_, key)
+  if (NS.OverrideKeys[key]) then
+    if key ~= AttaQR.lastKey and key ~= AttaQR.overrideKey then
+      local spellCooldownInfo = C_Spell.GetSpellCooldown(61304)
+      local timeLeft = math.max(spellCooldownInfo.startTime + spellCooldownInfo.duration - GetTime(), 0)
+
+      C_Timer.After(timeLeft, function()
+        AttaQR.overrideKey = key
+      end)
+
+      C_Timer.After(timeLeft + 1, function()
+        AttaQR.overrideKey = nil
+      end)
+    end
+  end
+end
+
+function AttaQR:Pause()
+  self.paused = true
+  print("AttaQR Paused")
+end
+
+function AttaQR:Resume()
+  self.paused = false
+  print("AttaQR Resumed")
+end
+
 function AttaQR:OnInitialize()
   self.db = LibStub("AceDB-3.0"):New(ADDON .. "DB", defaults, true)
   AceConfigDialog:AddToBlizOptions(ADDON, ADDON)
-
+  self.paused = false
+  self.overrideKey = nil
   self.frame = self:CreatePixelFrame()
   self:ConfigureSettings()
   self:ConfigureHekili()
@@ -136,12 +185,15 @@ function AttaQR:ConfigureHekili()
   primary.visibility.pvp.always = 0
   primary.visibility.pvp.combat = 0
   primary.visibility.pvp.target = 0
-  primary.visibility.pvp.combatTarget = 11
+  primary.visibility.pvp.combatTarget = 1
   primary.range.type = "xclude"
   Hekili:BuildUI()
 end
 
 function AttaQR:SetCode(key)
+  self.lastKey = key
+  if self.paused then return; end
+
   if key then
     local mod = 0
     local first = string.sub(key, 1, 1)
@@ -234,6 +286,10 @@ function AttaQR:CreatePixelFrame()
   if not self.db.profile.label then
     frame.text:Hide()
   end
+
+  frame:SetPropagateKeyboardInput(true)
+  frame:SetScript("OnKeyDown", AttaQR_OnKeyDown)
+
   return frame
 end
 

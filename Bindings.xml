@@ -2,4 +2,11 @@
  <Binding name="ATTAQRVERIFY" category="ADDONS" default="ALT-F12">
   AttaQR:Verified()
  </Binding>
+ <Binding name="ATTAQRPAUSE" category="ADDONS" default="`" runOnUp="true">
+    if ( keystate == "down" ) then
+      AttaQR:Pause()
+    else
+      AttaQR:Resume()
+    end
+ </Binding>
 </Bindings>
